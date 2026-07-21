@@ -15,6 +15,10 @@ To pull a new version:
 The `dumpSources` Gradle task will automatically download AGP and its transitive dependencies from 
 the Google repository and unzip them from your local Gradle cache directory.
 
+This fork also checks Google Maven daily for new stable AGP releases. New versions are extracted,
+committed automatically, and tagged as `agp-<version>`. Alpha, beta, and release-candidate builds
+are intentionally ignored. The workflow can also be started manually from the Actions tab.
+
 From there, use your favorite diff tool to easily examine changes across versions:
 
 ![Diff example](/images/agp-diff.png)

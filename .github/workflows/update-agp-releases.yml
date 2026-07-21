@@ -1,0 +1,65 @@
+name: Update AGP releases
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-agp-releases
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Find new stable AGP releases
+        id: releases
+        shell: bash
+        run: |
+          versions="$(python3 scripts/update_agp_releases.py)"
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+
+      - name: Download and extract sources
+        if: steps.releases.outputs.versions != ''
+        shell: bash
+        run: |
+          tasks=()
+          for version in ${{ steps.releases.outputs.versions }}; do
+            tasks+=("dump${version}Sources")
+          done
+          ./gradlew --no-daemon "${tasks[@]}"
+
+      - name: Commit sources and create release tags
+        if: steps.releases.outputs.versions != ''
+        shell: bash
+        env:
+          VERSIONS: ${{ steps.releases.outputs.versions }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build.gradle
+          for version in $VERSIONS; do
+            git add "$version"
+          done
+          git commit -m "Add AGP $VERSIONS sources"
+          for version in $VERSIONS; do
+            git tag -a "agp-$version" -m "Android Gradle Plugin $version sources"
+          done
+          git push origin HEAD:master --follow-tags
